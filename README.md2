@@ -1,0 +1,25 @@
+# BEAST System 3.0 - Backend & Cloud Deployment Engine
+
+Enterprise backend service and GitHub-to-Cloud deployment bridge for **BEAST System 3.0**, operating under GitHub organization/username **`pat333-ux`** and deployed live on Google Cloud Run.
+
+---
+
+## 🌐 Live Service Endpoint
+* **Cloud Run URL:** [https://beastsystem-70875693050.us-central1.run.app](https://beastsystem-70875693050.us-central1.run.app)
+* **Health Check:** `GET /healthz`
+* **Webhook Receiver:** `POST /api/v1/webhooks/github`
+
+---
+
+## 🚀 Repository Structure
+
+```text
+├── .github/
+│   └── workflows/
+│       └── deploy-cloud-run.yml   # Automated GitHub Actions CI/CD pipeline
+├── beast_github_cloud_sync.py     # Flask backend, HMAC security, system bus
+├── Dockerfile                     # Production container configuration
+├── requirements.txt               # Python runtime dependencies
+├── deploy_cloud_run.sh            # Manual shell deployment script
+├── .env.example                   # Environment variable template
+└── README.md                      # Documentation
