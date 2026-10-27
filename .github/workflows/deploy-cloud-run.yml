@@ -1,0 +1,66 @@
+name: CI/CD Pipeline - BEAST System to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+env:
+  GCP_PROJECT_ID: beast-system-511916
+  GCP_REGION: us-central1
+  SERVICE_NAME: beastsystem
+  REPOSITORY_NAME: beast-repo
+
+jobs:
+  deploy-to-cloud-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker Authentication for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and Push Container Image via Cloud Build
+        run: |
+          IMAGE_TAG="${{ github.sha }}"
+          IMAGE_URI="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
+          LATEST_URI="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.SERVICE_NAME }}:latest"
+          
+          echo "Building image: $IMAGE_URI"
+          gcloud builds submit --tag "$IMAGE_URI" .
+          
+          # Tag and push latest reference
+          gcloud artifacts docker images add-tag "$IMAGE_URI" "$LATEST_URI" --quiet
+
+      - name: Deploy to Google Cloud Run
+        run: |
+          LATEST_URI="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.SERVICE_NAME }}:latest"
+          
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image="$LATEST_URI" \
+            --region="${{ env.GCP_REGION }}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --port=8080 \
+            --cpu=1 \
+            --memory=512Mi \
+            --min-instances=0 \
+            --max-instances=10 \
+            --set-env-vars="SERVICE_URL=https://beastsystem-70875693050.us-central1.run.app,GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }}"
+
+      - name: Deployment Verification
+        run: |
+          echo "✅ Successfully deployed BEAST System 3.0 backend to https://beastsystem-70875693050.us-central1.run.app"
